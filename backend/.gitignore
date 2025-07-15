@@ -1,0 +1,47 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Logs
+logs
+*.log
+*.log.*
+
+# dotenv
+.env
+.env.*  # Ignora .env.local, .env.production, etc.
+
+# Build
+dist/
+build/
+
+# Vite
+.vite/
+.vitepress/
+.temp/
+
+# VSCode
+.vscode/
+
+# OS / Sistema
+.DS_Store
+Thumbs.db
+
+# Coverage / Tests
+coverage/
+*.lcov
+
+# IDEs
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Mac
+.AppleDouble
+.LSOverride
+
+# Render o Vercel (archivos locales)
+.vercel/
