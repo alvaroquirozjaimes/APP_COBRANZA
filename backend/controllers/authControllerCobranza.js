@@ -1,38 +1,50 @@
+// ===============================================
+// CONTROLADOR DE AUTENTICACIÓN PARA COBRANZA
+// ===============================================
+
+// Importa la conexión a la base de datos PostgreSQL
 const db = require('../config/db');
+
+// Importa bcryptjs para encriptar contraseñas y compararlas de forma segura
 const bcrypt = require('bcryptjs');
+
+// Importa jsonwebtoken para generar tokens JWT al autenticar o registrar usuarios
 const jwt = require('jsonwebtoken');
 
-// @desc    Autenticar usuario de cobranza y obtener token
+// Importa generateToken de utils
+const generateToken = require('../utils/generateToken');
+
+// ===============================================
+// FUNCIÓN: Iniciar sesión del personal de cobranza
+// ===============================================
+
+// @desc    Autenticar usuario de cobranza y obtener token JWT
 // @route   POST /api/cobranza/auth/login
-// @access  Public
+// @access  Público
 const loginUserCob = async (req, res) => {
-    const { username, password } = req.body;
+    const { username, password } = req.body; // Credenciales enviadas desde el frontend
 
     try {
-        // 1. Buscar el usuario de cobranza por username en la tabla user_cob
+        // 1. Buscar al usuario en la tabla 'user_cob' por su nombre de usuario
         const userCobQuery = 'SELECT * FROM user_cob WHERE username = $1';
         const { rows } = await db.query(userCobQuery, [username]);
-        const user = rows[0];
+        const user = rows[0]; // Si existe, se asigna al objeto 'user'
 
+        // 2. Validar si el usuario existe
         if (!user) {
             return res.status(400).json({ message: 'Credenciales inválidas para personal de cobranza.' });
         }
 
-        // 2. Comparar la contraseña ingresada con el hash almacenado
+        // 3. Comparar la contraseña enviada con la almacenada (en hash)
         const isMatch = await bcrypt.compare(password, user.password_hash);
-
         if (!isMatch) {
             return res.status(400).json({ message: 'Credenciales inválidas para personal de cobranza.' });
         }
 
-        // 3. Generar JWT para usuario de cobranza
-        const token = jwt.sign(
-            { id: user.id, username: user.username, role: user.role, type: 'cobranza' },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-        );
+        // 4. Generar un token JWT válido por 1 hora
+        const token = generateToken(user); 
 
-        // 4. Enviar respuesta exitosa con el token
+        // 5. Enviar respuesta con el token y algunos datos del usuario
         res.status(200).json({
             message: 'Inicio de sesión de personal de cobranza exitoso',
             token,
@@ -50,61 +62,64 @@ const loginUserCob = async (req, res) => {
     }
 };
 
-// @desc    Registrar un nuevo usuario de cobranza (considerar restringir acceso en producción)
+
+// ===============================================
+// FUNCIÓN: Registrar nuevo cobrador (desarrollo)
+// ===============================================
+
+// @desc    Registrar un nuevo usuario de cobranza
 // @route   POST /api/cobranza/auth/register
-// @access  Public (para desarrollo, Private/Admin en producción)
+// @access  Público (solo durante desarrollo, restringir en producción)
 const registerUserCob = async (req, res) => {
-    // 1. Desestructurar solo los campos que vienen del frontend
-    const { username, password, phone_number } = req.body; // <--- 'role' eliminado de aquí
+    // 1. Extraer datos del cuerpo de la solicitud
+    const { username, password, phone_number } = req.body;
 
-    // 2. Definir el rol por defecto en el backend
-    const defaultRole = 'cobrador'; // <--- Rol por defecto asignado
+    // 2. Definir el rol por defecto (no se acepta desde el frontend)
+    const defaultRole = 'cobrador';
 
-    // 3. Validaciones básicas de campos obligatorios (sin incluir el rol, ya que es por defecto)
-    if (!username || !password) { // <--- Validación de rol eliminada
-        return res.status(400).json({ message: 'Por favor, ingrese nombre de usuario y contraseña.' }); // <--- Mensaje de error actualizado
+    // 3. Validaciones básicas de campos obligatorios
+    if (!username || !password) {
+        return res.status(400).json({ message: 'Por favor, ingrese nombre de usuario y contraseña.' });
     }
 
-    // Validación de longitud de contraseña (ejemplo)
     if (password.length < 6) {
         return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres.' });
     }
 
-    // Validación de formato de número de celular (ejemplo: 9 dígitos)
-    // Asumiendo que phone_number es opcional o validado en frontend.
-    // Si es obligatorio, lo puedes añadir a la validación de arriba: if (!username || !password || !phone_number)
+    // Validación opcional para número de celular (si se proporciona)
     if (phone_number && !/^\d{9}$/.test(phone_number)) {
         return res.status(400).json({ message: 'Ingrese un número de celular válido (9 dígitos) o déjelo vacío.' });
     }
 
-
     try {
-        // Verificar si el usuario de cobranza ya existe
+        // 4. Verificar si el nombre de usuario ya existe
         const existingUser = await db.query('SELECT * FROM user_cob WHERE username = $1', [username]);
         if (existingUser.rows.length > 0) {
             return res.status(400).json({ message: 'El nombre de usuario ya está registrado.' });
         }
 
-        // Hashear la contraseña
+        // 5. Encriptar la contraseña usando bcrypt
         const salt = await bcrypt.genSalt(10);
         const password_hash = await bcrypt.hash(password, salt);
 
-        // Insertar el nuevo usuario en user_cob con el rol por defecto
+        // 6. Insertar el nuevo usuario en la base de datos
         const newUserQuery = `
             INSERT INTO user_cob (username, password_hash, phone_number, role)
-            VALUES ($1, $2, $3, $4) RETURNING id, username, role;
+            VALUES ($1, $2, $3, $4)
+            RETURNING id, username, role;
         `;
-        // <--- Pasamos defaultRole en lugar de 'role' del req.body
-        const { rows } = await db.query(newUserQuery, [username, password_hash, phone_number || null, defaultRole]);
+        const { rows } = await db.query(newUserQuery, [
+            username,
+            password_hash,
+            phone_number || null, // Si no se envía, se guarda como NULL
+            defaultRole
+        ]);
         const newUser = rows[0];
 
-        // Generar JWT para el nuevo usuario de cobranza
-        const token = jwt.sign(
-            { id: newUser.id, username: newUser.username, role: newUser.role, type: 'cobranza' },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-        );
+        // 7. Generar un token JWT para el nuevo usuario
+        const token = generateToken(newUser);
 
+        // 8. Devolver respuesta con token y datos del usuario
         res.status(201).json({
             message: 'Usuario de cobranza registrado exitosamente',
             token,
@@ -122,6 +137,10 @@ const registerUserCob = async (req, res) => {
     }
 };
 
+
+// ===============================================
+// Exportar funciones para usar en las rutas
+// ===============================================
 module.exports = {
     loginUserCob,
     registerUserCob

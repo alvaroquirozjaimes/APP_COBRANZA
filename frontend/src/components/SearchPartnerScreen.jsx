@@ -1,57 +1,70 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react"
+import { API_BASE_URL } from "../config/api.jsx"
 
-// URL base de tu backend. Asegúrate de que coincida con el puerto de tu servidor Express.
-// CAMBIO CLAVE: Añadir '/cobranza' a la URL base de la API.
-const API_BASE_URL = 'http://localhost:5000/api/cobranza'; // <--- MODIFICADO AQUÍ
+// Componente que permite buscar socios y seleccionarlos
 
-const SearchPartnerScreen = ({ onSelectPartner, onGoBack, authToken, authenticatedFetch }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [partners, setPartners] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+const SearchPartnerScreen = ({
+  onSelectPartner,
+  onGoBack,
+  authToken,
+  authenticatedFetch,
+}) => {
+  // Estados para controlar la búsqueda, resultados, carga y errores
+  const [searchTerm, setSearchTerm] = useState("")
+  const [partners, setPartners] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  // useEffect se ejecuta cuando cambia el término de búsqueda o el token
 
   useEffect(() => {
     const fetchPartners = async () => {
       if (!authToken) {
-        setError('No autorizado. Por favor, inicie sesión.');
-        return;
+        setError("No autorizado. Por favor, inicie sesión.")
+        return
       }
 
-      setLoading(true);
-      setError('');
-      setPartners([]);
+      setLoading(true) // Mostrar spinner
+      setError("") // Limpiar errores anteriores
+      setPartners([]) // Limpiar resultados previos
 
       try {
-        // La URL ahora es correcta con el cambio en API_BASE_URL
-        const response = await authenticatedFetch(`${API_BASE_URL}/partners?search=${searchTerm}`, { // <--- RUTA DE ACCESO ACTUALIZADA
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+        // Llama a la API con el término de búsqueda
+        const response = await authenticatedFetch(
+          `${API_BASE_URL}/partners?search=${searchTerm}`,
+          {
+            // <--- RUTA DE ACCESO ACTUALIZADA
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        )
 
-        const data = await response.json();
+        const data = await response.json()
         if (response.ok) {
-          setPartners(data);
+          setPartners(data) // Carga los socios encontrados
         } else {
-          setError(data.message || 'Error al cargar socios.');
+          setError(data.message || "Error al cargar socios.") // Error desde backend
         }
       } catch (err) {
-        console.error('Error al obtener socios:', err);
-        setError('No se pudo conectar con el servidor.');
+        console.error("Error al obtener socios:", err)
+        setError("No se pudo conectar con el servidor.")
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
     if (authToken) {
-      fetchPartners();
+      fetchPartners() // Ejecuta búsqueda si hay token
     }
-  }, [searchTerm, authToken, authenticatedFetch]);
+  }, [searchTerm, authToken, authenticatedFetch]) // Se ejecuta cuando cambia alguno
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-200 to-gray-100 p-4">
       <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl p-6 sm:p-10 space-y-6 animate-fade-in">
-        <h2 className="text-3xl font-extrabold text-center text-blue-900">🔍 Buscar Socio</h2>
+        <h2 className="text-3xl font-extrabold text-center text-blue-900">
+          🔍 Buscar Socio
+        </h2>
 
         <div className="relative">
           <input
@@ -63,13 +76,19 @@ const SearchPartnerScreen = ({ onSelectPartner, onGoBack, authToken, authenticat
             disabled={loading}
           />
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
               <path d="M21 21l-5.2-5.2M16.8 10.6a6.2 6.2 0 11-12.4 0 6.2 6.2 0 0112.4 0z" />
             </svg>
           </div>
           {searchTerm && (
             <button
-              onClick={() => setSearchTerm('')}
+              onClick={() => setSearchTerm("")}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-red-500"
             >
               ✖
@@ -79,18 +98,36 @@ const SearchPartnerScreen = ({ onSelectPartner, onGoBack, authToken, authenticat
 
         {loading && (
           <div className="flex justify-center items-center text-blue-600 font-medium">
-            <svg className="animate-spin h-6 w-6 mr-3 text-blue-600" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.3 0 0 5.3 0 12h4z" />
+            <svg
+              className="animate-spin h-6 w-6 mr-3 text-blue-600"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.3 0 0 5.3 0 12h4z"
+              />
             </svg>
             Buscando socios...
           </div>
         )}
 
-        {error && <p className="text-center text-red-600 font-semibold">{error}</p>}
+        {error && (
+          <p className="text-center text-red-600 font-semibold">{error}</p>
+        )}
 
         {!loading && partners.length === 0 && !error && (
-          <p className="text-center text-gray-500">No se encontraron socios. Intenta otro término.</p>
+          <p className="text-center text-gray-500">
+            No se encontraron socios. Intenta otro término.
+          </p>
         )}
 
         {partners.length > 0 && (
@@ -103,9 +140,21 @@ const SearchPartnerScreen = ({ onSelectPartner, onGoBack, authToken, authenticat
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="text-gray-800">
                     <p className="text-xl font-semibold">{partner.name}</p>
-                    {partner.dni && <p className="text-sm text-gray-600">DNI: {partner.dni}</p>}
-                    {partner.phone_number && <p className="text-sm text-gray-600">📱 {partner.phone_number}</p>}
-                    {partner.address && <p className="text-sm text-gray-600">📍 {partner.address}</p>}
+                    {partner.dni && (
+                      <p className="text-sm text-gray-600">
+                        DNI: {partner.dni}
+                      </p>
+                    )}
+                    {partner.phone_number && (
+                      <p className="text-sm text-gray-600">
+                        📱 {partner.phone_number}
+                      </p>
+                    )}
+                    {partner.address && (
+                      <p className="text-sm text-gray-600">
+                        📍 {partner.address}
+                      </p>
+                    )}
                   </div>
                   <button
                     onClick={() => onSelectPartner(partner)}
@@ -127,7 +176,7 @@ const SearchPartnerScreen = ({ onSelectPartner, onGoBack, authToken, authenticat
         </button>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default SearchPartnerScreen;
+export default SearchPartnerScreen

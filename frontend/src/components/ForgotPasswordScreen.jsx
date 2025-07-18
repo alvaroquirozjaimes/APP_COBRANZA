@@ -1,48 +1,60 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from '../config/api.jsx'; // URL base del backend definida en tu archivo de configuración
 
-// URL base de tu backend. Asegúrate de que coincida con el puerto de tu servidor Express.
-// CAMBIO CLAVE: Añadir '/cobranza' a la URL base de la API para autenticación de Cobranza.
-const API_BASE_URL = 'http://localhost:5000/api/cobranza'; // <--- MODIFICADO AQUÍ
-
+// Pantalla para restablecer la contraseña
 const ForgotPasswordScreen = ({ onGoToLogin }) => {
+  // Estado para almacenar el email ingresado por el usuario
   const [email, setEmail] = useState('');
+  // Estado para errores (ej: email no válido, error de red, etc.)
   const [error, setError] = useState('');
+  // Mensaje de éxito si el correo fue enviado correctamente
   const [successMessage, setSuccessMessage] = useState('');
+  // Estado de carga (true mientras se espera respuesta del servidor)
   const [loading, setLoading] = useState(false);
 
+  // Función que se ejecuta al hacer clic en "Enviar Instrucciones"
   const handleResetPassword = async () => {
+    // Limpiar estados anteriores
     setError('');
     setSuccessMessage('');
     setLoading(true);
+
     try {
-      // La URL ahora es correcta con el cambio en API_BASE_URL
-      const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, { // <--- RUTA DE ACCESO ACTUALIZADA
+      // Llamada al endpoint de recuperación de contraseña del backend
+      const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email }), // Enviamos el email en el cuerpo
       });
 
       const data = await response.json();
 
       if (response.ok) {
+        // Si la respuesta es exitosa, mostrar mensaje de éxito
         setSuccessMessage(data.message || 'Se han enviado instrucciones a su correo electrónico.');
         setEmail('');
       } else {
+        // Si hay un error del servidor, mostrarlo
         setError(data.message || 'Error al solicitar el restablecimiento de clave.');
       }
     } catch (err) {
+      // Si ocurre un error de red o servidor no responde
       console.error('Error de red o servidor:', err);
       setError('No se pudo conectar con el servidor. Intente de nuevo más tarde.');
     } finally {
+      // Finalizar carga, sea exitoso o fallido
       setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-800 via-indigo-900 to-purple-900 px-4">
+      {/* Contenedor principal */}
       <div className="bg-white/90 backdrop-blur-md p-8 md:p-10 rounded-2xl shadow-2xl w-full max-w-md space-y-6">
+        
+        {/* Título e instrucciones */}
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">¿Olvidaste tu clave?</h1>
           <p className="text-gray-600 text-sm">
@@ -50,6 +62,7 @@ const ForgotPasswordScreen = ({ onGoToLogin }) => {
           </p>
         </div>
 
+        {/* Campo de email */}
         <div>
           <label htmlFor="reset-email" className="block text-sm font-medium text-gray-700 mb-1">
             Correo electrónico
@@ -61,9 +74,10 @@ const ForgotPasswordScreen = ({ onGoToLogin }) => {
               className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200 placeholder-gray-400 text-gray-900"
               placeholder="ejemplo@correo.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value)} // Actualiza el estado en tiempo real
               disabled={loading}
             />
+            {/* Icono dentro del input */}
             <div className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M16 12H8m8 0a4 4 0 01-8 0m8 0a4 4 0 00-8 0M2 12a10 10 0 1120 0 10 10 0 01-20 0z" />
@@ -72,6 +86,7 @@ const ForgotPasswordScreen = ({ onGoToLogin }) => {
           </div>
         </div>
 
+        {/* Mensaje de error */}
         {error && (
           <div className="text-red-600 text-sm flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -81,6 +96,7 @@ const ForgotPasswordScreen = ({ onGoToLogin }) => {
           </div>
         )}
 
+        {/* Mensaje de éxito */}
         {successMessage && (
           <div className="text-green-600 text-sm flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -90,12 +106,14 @@ const ForgotPasswordScreen = ({ onGoToLogin }) => {
           </div>
         )}
 
+        {/* Botón para enviar el correo */}
         <button
           onClick={handleResetPassword}
           className="w-full bg-indigo-700 hover:bg-indigo-800 text-white py-3 rounded-xl transition duration-300 font-semibold flex items-center justify-center gap-2 shadow-lg"
-          disabled={loading || !email}
+          disabled={loading || !email} // Desactiva si está cargando o si no se ha ingresado email
         >
           {loading ? (
+            // Spinner mientras espera respuesta
             <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -105,6 +123,7 @@ const ForgotPasswordScreen = ({ onGoToLogin }) => {
           )}
         </button>
 
+        {/* Botón para volver al login */}
         <button
           onClick={onGoToLogin}
           className="w-full mt-4 text-indigo-700 hover:underline font-semibold text-sm"

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api.jsx';
 
-// URL base de tu backend. Asegúrate de que coincida con el puerto de tu servidor Express.
-const API_BASE_URL = 'http://localhost:5000/api/cobranza';
 
 const CollectionZoneDetailScreen = ({ onGoBack, authToken }) => {
   const [summaryData, setSummaryData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+
 
   useEffect(() => {
     const fetchCollectionSummary = async () => {
@@ -22,27 +22,34 @@ const CollectionZoneDetailScreen = ({ onGoBack, authToken }) => {
 
       try {
         const response = await fetch(`${API_BASE_URL}/summary?month=${selectedMonth}`, {
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
-          },
-        });
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    
 
-        const data = await response.json();
+    // Convertir respuesta a JSON
+    const data = await response.json();
 
-        if (response.ok) {
-          console.log("Datos del resumen recibidos:", data); // AÑADIDO PARA DEBUGGING
-          setSummaryData(data);
-        } else {
-          setError(data.message || 'Error al cargar el resumen de cobranza.');
-        }
-      } catch (err) {
-        console.error('Error al obtener resumen de cobranza:', err);
-        setError('No se pudo conectar con el servidor para obtener el resumen.');
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Verificar respuesta exitosa
+    if (response.ok) {
+      console.log("Datos del resumen recibidos:", data);
+      setSummaryData(data); // Guardar resumen en estado
+    } else {
+      // Error del servidor con mensaje personalizado
+      setError(data.message || 'Error al cargar el resumen de cobranza.');
+    }
+
+  } catch (err) {
+    // Error de red u otro error inesperado
+    console.error('Error al obtener resumen de cobranza:', err);
+    setError('No se pudo conectar con el servidor para obtener el resumen.');
+  } finally {
+    // Finaliza carga, sea éxito o error
+    setLoading(false);
+  }
+};
 
     fetchCollectionSummary();
   }, [selectedMonth, authToken]);

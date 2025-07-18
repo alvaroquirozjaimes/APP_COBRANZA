@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
-// URL base de tu backend. Asegúrate de que coincida con el puerto de tu servidor Express.
-const API_BASE_URL = 'http://localhost:5000/api/cobranza'; // Asegúrate de que esta URL sea la correcta
+import { API_BASE_URL } from '../config/api.jsx';
 
 const DepositScreen = ({ selectedPartner, onGoBack, authToken, authenticatedFetch }) => {
   const [accounts, setAccounts] = useState([]);

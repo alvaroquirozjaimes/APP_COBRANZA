@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
-// URL base de tu backend. Asegúrate de que coincida con el puerto de tu servidor Express.
-// CAMBIO CLAVE: Añadir '/cobranza' a la URL base de la API para autenticación de Cobranza.
-const API_BASE_URL = 'http://localhost:5000/api/cobranza'; // <--- MODIFICADO AQUÍ
+import { API_BASE_URL } from '../config/api.jsx';
 
 const LoginScreen = ({ onLoginSuccess, onGoToForgotPassword, onGoToRegister }) => {
   const [username, setUsername] = useState('');
@@ -30,12 +27,12 @@ const LoginScreen = ({ onLoginSuccess, onGoToForgotPassword, onGoToRegister }) =
       if (response.ok) {
         toast.success('Inicio de sesión exitoso 🎉', {
           position: 'top-right',
-          autoClose: 2000,
+          autoClose: 1000,
         });
 
         setTimeout(() => {
           onLoginSuccess(data.token); // Pasar token al componente App
-        }, 2000);
+        }, 1500);
       } else {
         setError(data.message || 'Error al iniciar sesión.');
       }
@@ -96,11 +93,13 @@ const LoginScreen = ({ onLoginSuccess, onGoToForgotPassword, onGoToRegister }) =
           disabled={loading}
         >
           {loading ? (
+            // Si loading es true, se muestra el spinner
             <svg className="animate-spin h-5 w-5 text-white mr-3" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
           ) : (
+            // Si no está cargando, se muestra el texto normal
             'INGRESAR'
           )}
         </button>

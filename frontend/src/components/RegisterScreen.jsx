@@ -1,39 +1,49 @@
+// Importación de hooks de React y la URL base de la API
 import React, { useState, useRef, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api.jsx'; // Ruta a la API
 
-const API_BASE_URL = 'http://localhost:5000/api/cobranza';
-
+// Componente principal: pantalla de registro
 const RegisterScreen = ({ onGoBack }) => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const [loading, setLoading] = useState(false);
+  // Estados para manejar los datos del formulario
+  const [username, setUsername] = useState(''); // Nombre de usuario
+  const [password, setPassword] = useState(''); // Contraseña
+  const [phoneNumber, setPhoneNumber] = useState(''); // Número de celular
 
+  // Estados para controlar mensajes de error, éxito y carga
+  const [error, setError] = useState(''); // Mensaje de error
+  const [successMessage, setSuccessMessage] = useState(''); // Mensaje de éxito
+  const [loading, setLoading] = useState(false); // Estado de carga
+
+  // Referencia al input de username para enfocar automáticamente
   const usernameInputRef = useRef(null);
 
+  // Hook que se ejecuta una vez al montar el componente
   useEffect(() => {
+    // Enfoca el input del nombre de usuario al cargar la pantalla
     usernameInputRef.current?.focus();
   }, []);
 
+  // Función para manejar el registro
   const handleRegister = async () => {
+    // Limpia mensajes previos antes de enviar
     setError('');
     setSuccessMessage('');
-    setLoading(true);
+    setLoading(true); // Activa el estado de carga (por ejemplo, para deshabilitar el botón)
 
+    // Validación: username y password no deben estar vacíos
     if (!username || !password) {
       setError('El usuario y la contraseña son obligatorios.');
-      setLoading(false);
+      setLoading(false); // Detiene la carga
       return;
     }
 
+    // Validación: número de celular debe tener exactamente 9 dígitos
     if (!/^\d{9}$/.test(phoneNumber)) {
       setError('Ingrese un número de celular válido (9 dígitos).');
-      setLoading(false);
+      setLoading(false); // Detiene la carga
       return;
     }
 
-    // ELIMINADA: const role = 'cobrador'; // Ya no se define aquí, el backend lo asigna.
 
     try {
       const response = await fetch(`${API_BASE_URL}/auth/register`, {

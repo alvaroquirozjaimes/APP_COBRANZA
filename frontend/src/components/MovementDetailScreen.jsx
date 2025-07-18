@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from "react"
+import { API_BASE_URL } from '../config/api.jsx'
 
-// URL base de tu backend. Asegúrate de que coincida con el puerto de tu servidor Express.
-const API_BASE_URL = "http://localhost:5000/api/cobranza"
-
+// Componente principal para mostrar los movimientos (recaudaciones) de una fecha específica
 const MovementDetailScreen = ({ onGoBack, authToken, authenticatedFetch }) => {
+  // Estados para guardar los movimientos, totales, errores, carga y fecha seleccionada
   const [movements, setMovements] = useState([])
   const [totalRecaudadoSoles, setTotalRecaudadoSoles] = useState(0)
   const [totalRecaudadoUSD, setTotalRecaudadoUSD] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [selectedDate, setSelectedDate] = useState(
-    new Date().toLocaleDateString("en-CA") // 'YYYY-MM-DD' en formato local
+    new Date().toLocaleDateString("en-CA") // Formato 'YYYY-MM-DD' para <input type="date">
   )
 
+  // useEffect se ejecuta al montar el componente o cuando cambia la fecha seleccionada, el token o el método de fetch
   useEffect(() => {
     const fetchMovements = async () => {
       if (!authToken) {
@@ -28,6 +29,7 @@ const MovementDetailScreen = ({ onGoBack, authToken, authenticatedFetch }) => {
       setTotalRecaudadoUSD(0)
 
       try {
+        // Petición al backend para obtener movimientos filtrados por fecha
         const response = await authenticatedFetch(
           `${API_BASE_URL}/movements?date=${selectedDate}`,
           {
@@ -40,10 +42,12 @@ const MovementDetailScreen = ({ onGoBack, authToken, authenticatedFetch }) => {
         const data = await response.json()
 
         if (response.ok) {
+          // Guardar movimientos y totales obtenidos
           setMovements(data.movements || [])
           setTotalRecaudadoSoles(data.totalRecaudadoSoles || 0)
           setTotalRecaudadoUSD(data.totalRecaudadoUSD || 0)
         } else {
+          // Mostrar mensaje de error devuelto por el servidor
           setError(data.message || "Error al cargar los movimientos.")
         }
       } catch (err) {
@@ -54,7 +58,7 @@ const MovementDetailScreen = ({ onGoBack, authToken, authenticatedFetch }) => {
       }
     }
 
-    fetchMovements()
+    fetchMovements() // Ejecutar la función al iniciar o cambiar la fecha/token
   }, [selectedDate, authToken, authenticatedFetch])
 
   return (
@@ -64,6 +68,7 @@ const MovementDetailScreen = ({ onGoBack, authToken, authenticatedFetch }) => {
           📅 Recaudación del Día
         </h2>
 
+        {/* Selector de fecha para filtrar movimientos */}
         <div>
           <label
             htmlFor="movementDate"
@@ -76,45 +81,35 @@ const MovementDetailScreen = ({ onGoBack, authToken, authenticatedFetch }) => {
             id="movementDate"
             className="w-full px-5 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-lg text-gray-800 shadow-sm"
             value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
+            onChange={(e) => setSelectedDate(e.target.value)} // Actualiza la fecha seleccionada
             disabled={loading}
           />
         </div>
 
+        {/* Indicador de carga */}
         {loading && (
           <div className="flex justify-center items-center text-blue-600 font-medium">
-            <svg
-              className="animate-spin h-6 w-6 mr-3 text-blue-600"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.3 0 0 5.3 0 12h4z"
-              />
+            <svg className="animate-spin h-6 w-6 mr-3 text-blue-600" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.3 0 0 5.3 0 12h4z" />
             </svg>
             Cargando movimientos...
           </div>
         )}
 
+        {/* Mensaje de error */}
         {error && (
           <p className="text-center text-red-600 font-semibold">{error}</p>
         )}
 
+        {/* Si no hay movimientos y no hay errores */}
         {!loading && movements.length === 0 && !error && (
           <p className="text-center text-gray-500">
             No hay movimientos para la fecha seleccionada.
           </p>
         )}
 
+        {/* Tabla con los movimientos cargados */}
         {movements.length > 0 && (
           <div>
             <h3 className="text-2xl font-bold text-gray-800 mb-4">
@@ -142,8 +137,8 @@ const MovementDetailScreen = ({ onGoBack, authToken, authenticatedFetch }) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {movements.map((move, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
+                  {movements.map((move) => (
+                    <tr key={move.id} className="hover:bg-gray-50">
                       <td className="py-3 px-4 text-base text-gray-900">
                         {move.client_name}
                       </td>
@@ -167,6 +162,7 @@ const MovementDetailScreen = ({ onGoBack, authToken, authenticatedFetch }) => {
           </div>
         )}
 
+        {/* Totales de recaudación en soles y dólares */}
         <div className="bg-gradient-to-br from-blue-100 to-white border border-blue-200 p-6 rounded-xl text-center shadow-inner">
           <h3 className="text-2xl font-bold text-blue-800 mb-3">
             💰 Total Recaudado
@@ -179,6 +175,7 @@ const MovementDetailScreen = ({ onGoBack, authToken, authenticatedFetch }) => {
           </p>
         </div>
 
+        {/* Botón para volver */}
         <button
           onClick={onGoBack}
           className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-3 rounded-lg transition shadow hover:shadow-md"
