@@ -1,19 +1,32 @@
 import React, { useState, useEffect } from "react"
-import { API_BASE_URL } from '../config/api.jsx'
+import { API_BASE_URL } from "../config/api.jsx"
 
-// Componente principal para mostrar los movimientos (recaudaciones) de una fecha específica
-const MovementDetailScreen = ({ onGoBack, authToken, authenticatedFetch }) => {
-  // Estados para guardar los movimientos, totales, errores, carga y fecha seleccionada
+const MovementDetailScreen = ({
+  onGoBack,
+  authToken,
+  authenticatedFetch,
+  collectorName = "DMCA",
+  onNavHome,
+  onNavRecaudacion,
+  onNavLogout,
+  currentPage,
+}) => {
   const [movements, setMovements] = useState([])
   const [totalRecaudadoSoles, setTotalRecaudadoSoles] = useState(0)
   const [totalRecaudadoUSD, setTotalRecaudadoUSD] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [selectedDate, setSelectedDate] = useState(
-    new Date().toLocaleDateString("en-CA") // Formato 'YYYY-MM-DD' para <input type="date">
+    new Date().toLocaleDateString("en-CA")
   )
 
-  // useEffect se ejecuta al montar el componente o cuando cambia la fecha seleccionada, el token o el método de fetch
+  const formatHeaderDate = (isoDate) => {
+    if (!isoDate) return ""
+    const [year, month, day] = isoDate.split("-")
+    if (!year || !month || !day) return ""
+    return `${day}${month}${year}`
+  }
+
   useEffect(() => {
     const fetchMovements = async () => {
       if (!authToken) {
@@ -29,7 +42,6 @@ const MovementDetailScreen = ({ onGoBack, authToken, authenticatedFetch }) => {
       setTotalRecaudadoUSD(0)
 
       try {
-        // Petición al backend para obtener movimientos filtrados por fecha
         const response = await authenticatedFetch(
           `${API_BASE_URL}/movements?date=${selectedDate}`,
           {
@@ -42,12 +54,10 @@ const MovementDetailScreen = ({ onGoBack, authToken, authenticatedFetch }) => {
         const data = await response.json()
 
         if (response.ok) {
-          // Guardar movimientos y totales obtenidos
           setMovements(data.movements || [])
           setTotalRecaudadoSoles(data.totalRecaudadoSoles || 0)
           setTotalRecaudadoUSD(data.totalRecaudadoUSD || 0)
         } else {
-          // Mostrar mensaje de error devuelto por el servidor
           setError(data.message || "Error al cargar los movimientos.")
         }
       } catch (err) {
@@ -58,131 +68,170 @@ const MovementDetailScreen = ({ onGoBack, authToken, authenticatedFetch }) => {
       }
     }
 
-    fetchMovements() // Ejecutar la función al iniciar o cambiar la fecha/token
+    fetchMovements()
   }, [selectedDate, authToken, authenticatedFetch])
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 p-4">
-      <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl p-6 sm:p-10 space-y-6 animate-fade-in">
-        <h2 className="text-3xl font-extrabold text-center text-blue-900">
-          📅 Recaudación del Día
-        </h2>
+  const isInicioActive = ["collectionZoneDetail", "searchPartner", "deposit"].includes(
+    currentPage
+  )
+  const isRecaudacionActive = currentPage === "movementDetail"
 
-        {/* Selector de fecha para filtrar movimientos */}
-        <div>
-          <label
-            htmlFor="movementDate"
-            className="block text-sm font-semibold text-gray-700 mb-2"
-          >
-            Seleccionar Fecha:
-          </label>
+  return (
+    <div className="min-h-screen bg-gray-200 flex justify-center">
+      <div className="w-full max-w-md bg-gray-200 flex flex-col shadow-lg animate-fade-in">
+        {/* HEADER AZUL */}
+        <header className="bg-blue-600 text-white px-3 py-2">
+          <div className="flex items-center">
+            <button
+              onClick={onGoBack}
+              className="p-1 mr-2 active:opacity-70"
+              disabled={loading}
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                viewBox="0 0 24 24"
+              >
+                <path d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+
+            <div className="flex-1 text-center leading-tight">
+              <p className="text-xs font-semibold">
+                Recaudados del día: {formatHeaderDate(selectedDate)}
+              </p>
+              <p className="text-[11px]">Cobrador: {collectorName}</p>
+            </div>
+
+            <div className="w-5" />
+          </div>
+        </header>
+
+        {/* Selector de fecha */}
+        <div className="px-3 py-2 bg-gray-200 border-b border-gray-300 flex items-center gap-2">
+          <span className="text-[11px] text-gray-700 font-medium">Fecha:</span>
           <input
             type="date"
             id="movementDate"
-            className="w-full px-5 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-lg text-gray-800 shadow-sm"
+            className="flex-1 border border-gray-300 rounded px-2 py-1 text-[11px] text-gray-800 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
             value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)} // Actualiza la fecha seleccionada
+            onChange={(e) => setSelectedDate(e.target.value)}
             disabled={loading}
           />
         </div>
 
-        {/* Indicador de carga */}
-        {loading && (
-          <div className="flex justify-center items-center text-blue-600 font-medium">
-            <svg className="animate-spin h-6 w-6 mr-3 text-blue-600" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.3 0 0 5.3 0 12h4z" />
-            </svg>
-            Cargando movimientos...
-          </div>
-        )}
-
-        {/* Mensaje de error */}
-        {error && (
-          <p className="text-center text-red-600 font-semibold">{error}</p>
-        )}
-
-        {/* Si no hay movimientos y no hay errores */}
-        {!loading && movements.length === 0 && !error && (
-          <p className="text-center text-gray-500">
-            No hay movimientos para la fecha seleccionada.
-          </p>
-        )}
-
-        {/* Tabla con los movimientos cargados */}
-        {movements.length > 0 && (
-          <div>
-            <h3 className="text-2xl font-bold text-gray-800 mb-4">
-              🧾 Detalle de Movimientos
-            </h3>
-            <div className="overflow-x-auto rounded-lg shadow-md border border-gray-200">
-              <table className="min-w-full bg-white">
-                <thead className="bg-blue-50">
-                  <tr>
-                    <th className="py-3 px-4 text-left text-xs font-semibold text-blue-800 uppercase">
-                      Cliente
-                    </th>
-                    <th className="py-3 px-4 text-left text-xs font-semibold text-blue-800 uppercase">
-                      Cuenta
-                    </th>
-                    <th className="py-3 px-4 text-left text-xs font-semibold text-blue-800 uppercase">
-                      Tipo
-                    </th>
-                    <th className="py-3 px-4 text-left text-xs font-semibold text-blue-800 uppercase">
-                      Moneda
-                    </th>
-                    <th className="py-3 px-4 text-right text-xs font-semibold text-blue-800 uppercase">
-                      Monto
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {movements.map((move) => (
-                    <tr key={move.id} className="hover:bg-gray-50">
-                      <td className="py-3 px-4 text-base text-gray-900">
-                        {move.client_name}
-                      </td>
-                      <td className="py-3 px-4 text-base text-gray-600">
-                        {move.account_number}
-                      </td>
-                      <td className="py-3 px-4 text-base text-gray-600">
-                        {move.transaction_type}
-                      </td>
-                      <td className="py-3 px-4 text-base text-gray-600">
-                        {move.currency}
-                      </td>
-                      <td className="py-3 px-4 text-base text-right font-bold text-green-700">
-                        {parseFloat(move.amount).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {/* CONTENIDO */}
+        <div className="flex-1 overflow-y-auto px-3 pt-2 pb-3">
+          {loading && (
+            <div className="flex justify-center items-center text-blue-700 text-xs mt-4">
+              <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.3 0 0 5.3 0 12h4z"
+                ></path>
+              </svg>
+              Cargando movimientos...
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Totales de recaudación en soles y dólares */}
-        <div className="bg-gradient-to-br from-blue-100 to-white border border-blue-200 p-6 rounded-xl text-center shadow-inner">
-          <h3 className="text-2xl font-bold text-blue-800 mb-3">
-            💰 Total Recaudado
-          </h3>
-          <p className="text-4xl font-extrabold text-blue-700 mb-2">
-            S/. {Number(totalRecaudadoSoles).toFixed(2)}
-          </p>
-          <p className="text-lg text-gray-600">
-            USD {Number(totalRecaudadoUSD).toFixed(2)}
-          </p>
+          {error && !loading && (
+            <p className="text-center text-red-600 text-xs mt-4">{error}</p>
+          )}
+
+          {!loading && movements.length === 0 && !error && (
+            <p className="text-center text-gray-500 text-xs mt-4">
+              No hay movimientos para la fecha seleccionada.
+            </p>
+          )}
+
+          {movements.length > 0 && (
+            <div className="mt-1">
+              <div className="grid grid-cols-[1.2fr,3fr,2.4fr,1fr] bg-gray-300 px-2 py-2 text-[11px] font-semibold text-gray-800">
+                <span className="text-right">Importe</span>
+                <span>Cliente</span>
+                <span>Cuenta</span>
+                <span className="text-center">Tipo</span>
+              </div>
+
+              <div className="bg-gray-300 pt-[1px]">
+                {movements.map((move) => (
+                  <div
+                    key={move.id}
+                    className="grid grid-cols-[1.2fr,3fr,2.4fr,1fr] bg-white px-2 py-2 text-[11px] text-gray-800 mb-[1px]"
+                  >
+                    <span className="text-right font-medium">
+                      {parseFloat(move.amount).toFixed(2)}
+                    </span>
+                    <span className="truncate uppercase ml-1">
+                      {move.client_name}
+                    </span>
+                    <span className="truncate ml-1">
+                      {move.account_number}
+                    </span>
+                    <span className="text-center uppercase">
+                      {move.transaction_type}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Botón para volver */}
-        <button
-          onClick={onGoBack}
-          className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-3 rounded-lg transition shadow hover:shadow-md"
-          disabled={loading}
-        >
-          ← Volver
-        </button>
+        {/* TARJETA DE TOTAL */}
+        <div className="px-3 pb-3">
+          <div className="bg-white rounded-md shadow px-3 py-2 text-[11px] text-gray-800 border border-gray-300">
+            <p className="text-center font-bold mb-1">TOTAL RECAUDADO</p>
+            <div className="flex justify-between">
+              <span>S/.</span>
+              <span>{Number(totalRecaudadoSoles).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between mt-1">
+              <span>USD</span>
+              <span>{Number(totalRecaudadoUSD).toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* FOOTER */}
+        <footer className="border-t bg-white py-2 flex justify-around text-[11px]">
+          <button
+            className={`flex flex-col items-center ${
+              isInicioActive ? "text-blue-600" : "text-gray-600"
+            }`}
+            onClick={onNavHome}
+          >
+            <span className="text-xl">🏠</span>
+            <span>Inicio</span>
+          </button>
+          <button
+            className={`flex flex-col items-center ${
+              isRecaudacionActive ? "text-blue-600" : "text-gray-600"
+            }`}
+            onClick={onNavRecaudacion}
+          >
+            <span className="text-xl">💰</span>
+            <span>Recaudación</span>
+          </button>
+          <button
+            className="flex flex-col items-center text-gray-600"
+            onClick={onNavLogout}
+          >
+            <span className="text-xl">⏻</span>
+            <span>Cerrar Sesión</span>
+          </button>
+        </footer>
       </div>
     </div>
   )

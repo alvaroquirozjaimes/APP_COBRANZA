@@ -16,7 +16,8 @@ const App = () => {
   const [authToken, setAuthToken] = useState(
     localStorage.getItem("authToken") || null
   ) // Token guardado localmente
-  const [warningMessage, setWarningMessage] = useState("") // Mensajes de advertencia para mostrar al usuario
+  const [warningMessage, setWarningMessage] = useState("") // Mensajes de advertencia (por ahora casi no lo usamos)
+  const [selectedZoneName, setSelectedZoneName] = useState("CAYHUAYNA") // Zona actual
 
   // Manejo cuando el token ha expirado o es inválido
   const handleTokenExpired = () => {
@@ -31,7 +32,8 @@ const App = () => {
   useEffect(() => {
     if (authToken) {
       setLoggedIn(true)
-      setCurrentPage("searchPartner") // Página por defecto después de login
+      // Pantalla inicial DESPUÉS de login: Mis Zonas de Cobranza
+      setCurrentPage("collectionZoneDetail")
     }
   }, [authToken])
 
@@ -40,7 +42,8 @@ const App = () => {
     setAuthToken(token)
     localStorage.setItem("authToken", token)
     setLoggedIn(true)
-    setCurrentPage("searchPartner")
+    // Pantalla inicial: Mis Zonas de Cobranza
+    setCurrentPage("collectionZoneDetail")
   }
 
   // Cerrar sesión
@@ -50,6 +53,7 @@ const App = () => {
     setLoggedIn(false)
     setCurrentPage("login")
     setWarningMessage("")
+    setSelectedPartner(null)
   }
 
   // Cuando se selecciona un socio, guardar y redirigir a pantalla de depósito
@@ -59,18 +63,28 @@ const App = () => {
     setCurrentPage("deposit")
   }
 
-  // Acción para regresar desde diferentes pantallas
+  // Acción para regresar usando la flecha superior
   const handleGoBack = () => {
     switch (currentPage) {
-      case "searchPartner":
+      case "collectionZoneDetail":
+        // Volver desde Mis Zonas de Cobranza → cerrar sesión (como en muchas apps antiguas)
         handleLogout()
         break
+      case "searchPartner":
+        // Desde Buscar socios → volver a Mis Zonas de Cobranza
+        setCurrentPage("collectionZoneDetail")
+        break
       case "movementDetail":
-      case "collectionZoneDetail":
+        // Desde Recaudados del día → volver a Mis Zonas de Cobranza
+        setCurrentPage("collectionZoneDetail")
+        break
       case "deposit":
+        // Desde Recaudar socio → volver a Buscar socios
+        setCurrentPage("searchPartner")
+        break
       case "forgotPassword":
       case "register":
-        setCurrentPage("searchPartner") // Era a loguin
+        setCurrentPage("login")
         break
       default:
         handleLogout()
@@ -100,6 +114,23 @@ const App = () => {
       console.error("Error en fetch autenticado:", error)
       throw error
     }
+  }
+
+  // Navegación de la barra inferior
+  const handleNavHome = () => {
+    setWarningMessage("")
+    setCurrentPage("collectionZoneDetail")
+  }
+
+  const handleNavRecaudacion = () => {
+    setWarningMessage("")
+    setCurrentPage("movementDetail")
+  }
+
+  // Cuando desde Mis Zonas se hace clic en la flechita para ir a Buscar Socios
+  const handleGoToSearchFromZone = (zoneName) => {
+    if (zoneName) setSelectedZoneName(zoneName)
+    setCurrentPage("searchPartner")
   }
 
   // Renderizar contenido principal según estado de sesión y página
@@ -132,144 +163,78 @@ const App = () => {
         content = <p>Página no encontrada.</p>
     }
   } else {
-    // Si está logueado, mostrar barra de navegación y contenido principal
-    content = (
-      <div className="flex flex-col min-h-screen bg-gray-100">
-        {/* Barra de navegación */}
-        <nav className="bg-blue-800 p-4 text-white shadow-xl flex flex-wrap justify-center sm:justify-start items-center gap-2 sm:gap-4">
-          <h2 className="text-xl font-bold mr-4 hidden sm:block">
-            APP DE COBRANZA
-          </h2>
-
-          {/* Botones de navegación con estilo dinámico */}
-          <button
-            onClick={() => setCurrentPage("searchPartner")}
-            className={`py-2 px-4 rounded-full text-sm font-semibold transition-all duration-300 ease-in-out transform hover:scale-105
-              ${
-                currentPage === "searchPartner"
-                  ? "bg-blue-500 shadow-md"
-                  : "bg-blue-600 hover:bg-blue-500"
-              }`}
-          >
-            Buscar Socio
-          </button>
-
-          <button
-            onClick={() => setCurrentPage("movementDetail")}
-            className={`py-2 px-4 rounded-full text-sm font-semibold transition-all duration-300 ease-in-out transform hover:scale-105
-              ${
-                currentPage === "movementDetail"
-                  ? "bg-blue-500 shadow-md"
-                  : "bg-blue-600 hover:bg-blue-500"
-              }`}
-          >
-            Detalle Movimientos
-          </button>
-
-          <button
-            onClick={() => setCurrentPage("collectionZoneDetail")}
-            className={`py-2 px-4 rounded-full text-sm font-semibold transition-all duration-300 ease-in-out transform hover:scale-105
-              ${
-                currentPage === "collectionZoneDetail"
-                  ? "bg-blue-500 shadow-md"
-                  : "bg-blue-600 hover:bg-blue-500"
-              }`}
-          >
-            Zona de Cobranza
-          </button>
-
-          <button
-            onClick={() => {
-              if (!selectedPartner) {
-                // Si no hay socio seleccionado, advertir
-                setWarningMessage(
-                  "⚠️ Por favor, seleccione un socio primero para realizar un depósito."
-                )
-                setCurrentPage("searchPartner")
-                return
-              }
-              setWarningMessage("")
-              setCurrentPage("deposit")
-            }}
-            className={`py-2 px-4 rounded-full text-sm font-semibold transition-all duration-300 ease-in-out transform hover:scale-105
-              ${
-                currentPage === "deposit"
-                  ? "bg-blue-500 shadow-md"
-                  : "bg-blue-600 hover:bg-blue-500"
-              }`}
-          >
-            Realizar Depósito
-          </button>
-
-          {/* Botón para cerrar sesión */}
-          <button
-            onClick={handleLogout}
-            className="py-2 px-4 rounded-full text-sm font-semibold bg-red-600 hover:bg-red-700 transition-all duration-300 ease-in-out transform hover:scale-105 ml-auto"
-          >
-            Cerrar Sesión
-          </button>
-        </nav>
-
-        {/* Contenedor del contenido principal */}
-        <div className="flex-grow p-4 sm:p-6 lg:p-8">
-          {/* Mostrar mensaje de advertencia si existe */}
-          {warningMessage && (
-            <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-4 rounded-lg shadow-md">
-              <p className="font-medium">{warningMessage}</p>
-            </div>
-          )}
-
-          {/* Mostrar el componente correspondiente según la página actual */}
-          {(() => {
-            switch (currentPage) {
-              case "searchPartner":
-                return (
-                  <SearchPartnerScreen
-                    onSelectPartner={handleSelectPartner}
-                    onGoBack={handleGoBack}
-                    authToken={authToken}
-                    authenticatedFetch={authenticatedFetch}
-                  />
-                )
-              case "movementDetail":
-                return (
-                  <MovementDetailScreen
-                    onGoBack={handleGoBack}
-                    authToken={authToken}
-                    authenticatedFetch={authenticatedFetch}
-                  />
-                )
-              case "collectionZoneDetail":
-                return (
-                  <CollectionZoneDetailScreen
-                    onGoBack={handleGoBack}
-                    authToken={authToken}
-                    authenticatedFetch={authenticatedFetch}
-                  />
-                )
-              case "deposit":
-                return (
-                  <DepositScreen
-                    selectedPartner={selectedPartner}
-                    onGoBack={handleGoBack}
-                    authToken={authToken}
-                    authenticatedFetch={authenticatedFetch}
-                  />
-                )
-              default:
-                return (
-                  <SearchPartnerScreen
-                    onSelectPartner={handleSelectPartner}
-                    onGoBack={handleGoBack}
-                    authToken={authToken}
-                    authenticatedFetch={authenticatedFetch}
-                  />
-                )
-            }
-          })()}
-        </div>
-      </div>
-    )
+    // Si está logueado, mostramos SOLO la pantalla actual tipo app móvil
+    switch (currentPage) {
+      case "collectionZoneDetail":
+        content = (
+          <CollectionZoneDetailScreen
+            onGoBack={handleGoBack}
+            authToken={authToken}
+            authenticatedFetch={authenticatedFetch}
+            onGoToSearchPartner={handleGoToSearchFromZone}
+            onNavHome={handleNavHome}
+            onNavRecaudacion={handleNavRecaudacion}
+            onNavLogout={handleLogout}
+            currentPage={currentPage}
+          />
+        )
+        break
+      case "searchPartner":
+        content = (
+          <SearchPartnerScreen
+            onSelectPartner={handleSelectPartner}
+            onGoBack={handleGoBack}
+            authToken={authToken}
+            authenticatedFetch={authenticatedFetch}
+            zoneName={selectedZoneName}
+            onNavHome={handleNavHome}
+            onNavRecaudacion={handleNavRecaudacion}
+            onNavLogout={handleLogout}
+            currentPage={currentPage}
+          />
+        )
+        break
+      case "movementDetail":
+        content = (
+          <MovementDetailScreen
+            onGoBack={handleGoBack}
+            authToken={authToken}
+            authenticatedFetch={authenticatedFetch}
+            onNavHome={handleNavHome}
+            onNavRecaudacion={handleNavRecaudacion}
+            onNavLogout={handleLogout}
+            currentPage={currentPage}
+          />
+        )
+        break
+      case "deposit":
+        content = (
+          <DepositScreen
+            selectedPartner={selectedPartner}
+            onGoBack={handleGoBack}
+            authToken={authToken}
+            authenticatedFetch={authenticatedFetch}
+            onNavHome={handleNavHome}
+            onNavRecaudacion={handleNavRecaudacion}
+            onNavLogout={handleLogout}
+            currentPage={currentPage}
+          />
+        )
+        break
+      default:
+        content = (
+          <CollectionZoneDetailScreen
+            onGoBack={handleGoBack}
+            authToken={authToken}
+            authenticatedFetch={authenticatedFetch}
+            onGoToSearchPartner={handleGoToSearchFromZone}
+            onNavHome={handleNavHome}
+            onNavRecaudacion={handleNavRecaudacion}
+            onNavLogout={handleLogout}
+            currentPage={"collectionZoneDetail"}
+          />
+        )
+    }
   }
 
   // Devolver el contenido general de la aplicación

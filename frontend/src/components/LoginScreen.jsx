@@ -13,8 +13,7 @@ const LoginScreen = ({ onLoginSuccess, onGoToForgotPassword, onGoToRegister }) =
     setError('');
     setLoading(true);
     try {
-      // La URL ahora es correcta con el cambio en API_BASE_URL
-      const response = await fetch(`${API_BASE_URL}/auth/login`, { // <--- RUTA DE ACCESO ACTUALIZADA
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -31,7 +30,7 @@ const LoginScreen = ({ onLoginSuccess, onGoToForgotPassword, onGoToRegister }) =
         });
 
         setTimeout(() => {
-          onLoginSuccess(data.token); // Pasar token al componente App
+          onLoginSuccess(data.token);
         }, 1500);
       } else {
         setError(data.message || 'Error al iniciar sesión.');
@@ -45,79 +44,115 @@ const LoginScreen = ({ onLoginSuccess, onGoToForgotPassword, onGoToRegister }) =
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-700 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-white px-4">
       <ToastContainer />
-      <div className="bg-white p-8 md:p-10 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 hover:scale-105">
-        {/* Logo o imagen de la cooperativa */}
-        <div className="mb-8 flex justify-center">
-          <div className="w-32 h-32 flex items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-purple-700 shadow-lg text-white font-bold text-4xl transform rotate-6 hover:rotate-0 transition-transform duration-300">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-16 h-16">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9.75h19.5M2.25 11.25h19.5M2.25 12.75h19.5M2.25 14.25h19.5M2.25 15.75h19.5M2.25 17.25h19.5M2.25 18.75h19.5M2.25 20.25h19.5M2.25 3.75h19.5M2.25 5.25h19.5M2.25 6.75h19.5M2.25 2.25h19.5M2.25 21.75h19.5" />
-            </svg>
+      <div className="w-full max-w-sm flex flex-col items-center">
+        {/* Texto superior */}
+        <p className="text-sm text-gray-500 mb-6 text-center">
+          Cooperativa San Francisco de Huanuco
+        </p>
+
+        {/* Logo de círculos de colores */}
+        <div className="relative w-24 h-24 mb-6">
+          {/* Círculo rojo grande */}
+          <span className="absolute w-12 h-12 rounded-full bg-red-500 top-0 right-2 shadow-sm" />
+          {/* Círculo verde */}
+          <span className="absolute w-8 h-8 rounded-full bg-green-400 bottom-5 left-0 shadow-sm" />
+          {/* Círculo amarillo */}
+          <span className="absolute w-5 h-5 rounded-full bg-yellow-400 bottom-0 right-4 shadow-sm" />
+        </div>
+
+        {/* Texto "Ingresa a la cobranza móvil" */}
+        <p className="text-gray-500 mb-8 text-center">
+          Ingresa a la cobranza móvil
+        </p>
+
+        {/* Tarjeta de login */}
+        <div className="w-full bg-white border border-gray-300 rounded-2xl shadow-sm px-6 py-8">
+          {/* Campo usuario */}
+          <div className="mb-6">
+            <input
+              type="text"
+              id="username"
+              className="w-full border-b border-gray-300 py-2 text-gray-800 text-sm focus:outline-none focus:border-blue-500 placeholder-gray-400"
+              placeholder="Usuario"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              disabled={loading}
+            />
           </div>
-        </div>
 
-        <h1 className="text-3xl font-extrabold text-gray-800 mb-8 text-center">APP DE COBRANZA</h1>
+          {/* Campo contraseña */}
+          <div className="mb-6">
+            <input
+              type="password"
+              id="password"
+              className="w-full border-b border-gray-300 py-2 text-gray-800 text-sm focus:outline-none focus:border-blue-500 placeholder-gray-400"
+              placeholder="Ingrese su clave"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+            />
+          </div>
 
-        <div className="mb-6 text-left">
-          <label htmlFor="username" className="block text-gray-700 text-sm font-semibold mb-2">Usuario</label>
-          <input
-            type="text"
-            id="username"
-            className="w-full px-5 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-3 focus:ring-blue-400 transition duration-200 text-gray-800 placeholder-gray-400"
-            placeholder="Ingrese su usuario"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            disabled={loading}
-          />
-        </div>
-
-        <div className="mb-8 text-left">
-          <label htmlFor="password" className="block text-gray-700 text-sm font-semibold mb-2">Clave</label>
-          <input
-            type="password"
-            id="password"
-            className="w-full px-5 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-3 focus:ring-blue-400 transition duration-200 text-gray-800 placeholder-gray-400"
-            placeholder="Ingrese su clave"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={loading}
-          />
-        </div>
-
-        {error && <p className="text-red-600 text-sm mb-6 font-medium text-center">{error}</p>}
-
-        <button
-          onClick={handleLogin}
-          className="w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white py-3 rounded-lg hover:from-blue-700 hover:to-blue-900 transition duration-300 ease-in-out font-bold text-lg shadow-lg transform hover:-translate-y-1 flex items-center justify-center"
-          disabled={loading}
-        >
-          {loading ? (
-            // Si loading es true, se muestra el spinner
-            <svg className="animate-spin h-5 w-5 text-white mr-3" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          ) : (
-            // Si no está cargando, se muestra el texto normal
-            'INGRESAR'
+          {error && (
+            <p className="text-red-600 text-xs mb-4 font-medium text-center">
+              {error}
+            </p>
           )}
-        </button>
 
-        <div className="mt-8 text-sm text-center">
-          <p className="text-gray-600 mb-2">
-            ¿Olvidaste tu clave?{' '}
-            <button onClick={onGoToForgotPassword} className="text-blue-600 hover:underline font-semibold focus:outline-none">
-              Recupérala aquí
-            </button>
-          </p>
-          <p className="text-gray-600">
-            ¿Aún no tienes una cuenta?{' '}
-            <button onClick={onGoToRegister} className="text-blue-600 hover:underline font-semibold focus:outline-none">
-              Regístrate
-            </button>
-          </p>
+          {/* Botón INGRESAR */}
+          <button
+            onClick={handleLogin}
+            className="w-full bg-blue-600 text-white py-3 rounded-md text-sm font-semibold shadow-md hover:bg-blue-700 transition flex items-center justify-center"
+            disabled={loading}
+          >
+            {loading ? (
+              <svg
+                className="animate-spin h-5 w-5 text-white"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+            ) : (
+              'INGRESAR'
+            )}
+          </button>
         </div>
+
+        {/* Texto inferior tipo screenshot */}
+        <p className="mt-6 text-xs text-center text-indigo-500">
+          ¿Olvidaste tu clave o aún no tienes una?{' '}
+          <button
+            onClick={onGoToForgotPassword}
+            className="font-semibold underline focus:outline-none"
+          >
+            Presiona aquí!
+          </button>
+        </p>
+
+        {/* Extra: acceso directo a registro (mantiene tu funcionalidad) */}
+        <p className="mt-2 text-[11px] text-center text-gray-500">
+          Si eres nuevo cobrador{' '}
+          <button
+            onClick={onGoToRegister}
+            className="font-semibold text-blue-600 hover:underline focus:outline-none"
+          >
+            regístrate aquí.
+          </button>
+        </p>
       </div>
     </div>
   );

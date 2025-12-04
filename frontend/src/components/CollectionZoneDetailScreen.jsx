@@ -1,135 +1,265 @@
-import React, { useState, useEffect } from 'react';
-import { API_BASE_URL } from '../config/api.jsx';
+import React, { useState, useEffect } from "react"
+import { API_BASE_URL } from "../config/api.jsx"
 
+const formatAmount = (value) =>
+  Number(value || 0).toLocaleString("es-PE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 
-const CollectionZoneDetailScreen = ({ onGoBack, authToken }) => {
-  const [summaryData, setSummaryData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+const DetailRow = ({ label, pen, usd, bold = false }) => (
+  <div className="flex justify-between items-baseline text-[11px] mb-1">
+    <span className={bold ? "font-semibold" : ""}>{label}</span>
+    <div className="flex items-baseline gap-2">
+      <span>S/</span>
+      <span className="w-20 text-right">{formatAmount(pen)}</span>
+      <span className="ml-2">USD</span>
+      <span className="w-20 text-right">{formatAmount(usd)}</span>
+    </div>
+  </div>
+)
 
+const CollectionZoneDetailScreen = ({
+  // onGoBack YA NO SE USA AQUÍ
+  onGoBack, // lo dejamos en props por si lo usas en otro lado, pero no lo llamamos
+  authToken,
+  authenticatedFetch,
+  onGoToSearchPartner,
+  onNavHome,
+  onNavRecaudacion,
+  onNavLogout,
+  currentPage,
+}) => {
+  const [summaryData, setSummaryData] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [selectedMonth, setSelectedMonth] = useState(
+    new Date().toISOString().slice(0, 7) // YYYY-MM
+  )
 
   useEffect(() => {
     const fetchCollectionSummary = async () => {
       if (!authToken) {
-        setError('No autorizado. Por favor, inicie sesión.');
-        return;
+        setError("No autorizado. Por favor, inicie sesión.")
+        return
       }
 
-      setLoading(true);
-      setError('');
-      setSummaryData(null);
+      setLoading(true)
+      setError("")
+      setSummaryData(null)
 
       try {
-        const response = await fetch(`${API_BASE_URL}/summary?month=${selectedMonth}`, {
-      headers: {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    
+        const response = await authenticatedFetch(
+          `${API_BASE_URL}/summary?month=${selectedMonth}`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        )
 
-    // Convertir respuesta a JSON
-    const data = await response.json();
+        const data = await response.json()
 
-    // Verificar respuesta exitosa
-    if (response.ok) {
-      console.log("Datos del resumen recibidos:", data);
-      setSummaryData(data); // Guardar resumen en estado
-    } else {
-      // Error del servidor con mensaje personalizado
-      setError(data.message || 'Error al cargar el resumen de cobranza.');
+        if (response.ok) {
+          setSummaryData(data)
+        } else {
+          setError(data.message || "Error al cargar el resumen de cobranza.")
+        }
+      } catch (err) {
+        console.error("Error al obtener resumen de cobranza:", err)
+        setError(
+          "No se pudo conectar con el servidor para obtener el resumen."
+        )
+      } finally {
+        setLoading(false)
+      }
     }
 
-  } catch (err) {
-    // Error de red u otro error inesperado
-    console.error('Error al obtener resumen de cobranza:', err);
-    setError('No se pudo conectar con el servidor para obtener el resumen.');
-  } finally {
-    // Finaliza carga, sea éxito o error
-    setLoading(false);
-  }
-};
+    fetchCollectionSummary()
+  }, [selectedMonth, authToken, authenticatedFetch])
 
-    fetchCollectionSummary();
-  }, [selectedMonth, authToken]);
+  const isInicioActive = ["collectionZoneDetail", "searchPartner", "deposit"].includes(
+    currentPage
+  )
+  const isRecaudacionActive = currentPage === "movementDetail"
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-gray-100 p-4">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-2xl">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Detalle Zona de Cobranza y Cobro del Mes</h2>
+    <div className="min-h-screen bg-gray-200 flex justify-center">
+      {/* Contenedor tipo móvil */}
+      <div className="w-full max-w-md bg-gray-200 flex flex-col shadow-lg">
+        {/* HEADER AZUL (SIN FLECHA ATRÁS) */}
+        <header className="bg-blue-600 text-white px-3 py-3 flex items-center">
+          {/* Espacio a la izquierda para mantener el título centrado */}
+          <div className="w-5" />
+          <h1 className="flex-1 text-center text-sm font-semibold">
+            Mis Zonas de Cobranza
+          </h1>
+          {/* Espacio a la derecha con el mismo ancho */}
+          <div className="w-5" />
+        </header>
 
-        <div className="mb-6">
-          <label htmlFor="collectionMonth" className="block text-gray-700 text-sm font-medium mb-2">Seleccionar Mes:</label>
+        {/* Selección de mes */}
+        <div className="px-3 py-2 bg-gray-200 flex justify-end items-center gap-2 border-b border-gray-300">
+          <span className="text-[11px] text-gray-700">Mes:</span>
           <input
             type="month"
-            id="collectionMonth"
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
+            className="border border-gray-300 rounded px-2 py-1 text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
             disabled={loading}
           />
         </div>
 
-        {loading && (
-          <div className="flex items-center justify-center mb-4">
-            <svg className="animate-spin h-5 w-5 text-blue-500 mr-3" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Cargando resumen...
-          </div>
-        )}
-
-        {error && <p className="text-red-500 text-sm mb-4 font-medium text-center">{error}</p>}
-
-        {!loading && !summaryData && !error && (
-          <p className="text-gray-600 text-center mb-4">No hay datos de resumen para el mes seleccionado.</p>
-        )}
-
-        {summaryData && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div className="bg-blue-50 p-4 rounded-lg shadow-inner">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Información General</h3>
-              <p className="text-gray-700">Zona: <span className="font-bold text-blue-700">{summaryData.zoneName || 'N/A'}</span></p>
-              <p className="text-gray-700">Total Socios: <span className="font-bold text-blue-700">{summaryData.totalPartners || 0}</span></p>
-              <p className="text-gray-700">Socios Cobrados: <span className="font-bold text-blue-700">{summaryData.collectedPartners || 0}</span></p>
+        {/* CONTENIDO */}
+        <div className="flex-1 overflow-y-auto px-3 py-3">
+          {loading && (
+            <div className="flex items-center justify-center text-blue-700 text-xs mt-4">
+              <svg
+                className="animate-spin h-5 w-5 mr-2"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.3 0 0 5.3 0 12h4z"
+                ></path>
+              </svg>
+              Cargando resumen...
             </div>
+          )}
 
-            <div className="bg-green-50 p-4 rounded-lg shadow-inner">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Cobranza Diaria</h3>
-              <p className="text-gray-700">Cob. Diaria &lt;=30: <span className="font-bold text-green-700">S/ {parseFloat(summaryData.dailyCollectionLessThan30 || 0).toFixed(2)}</span></p>
-              <p className="text-gray-700">Cob. Diaria &gt;30: <span className="font-bold text-green-700">S/ {parseFloat(summaryData.dailyCollectionGreaterThan30 || 0).toFixed(2)}</span></p>
+          {error && !loading && (
+            <p className="text-center text-red-600 text-xs mt-4">{error}</p>
+          )}
+
+          {!loading && !summaryData && !error && (
+            <p className="text-center text-gray-500 text-xs mt-4">
+              No hay datos de resumen para el mes seleccionado.
+            </p>
+          )}
+
+          {summaryData && (
+            <div className="bg-white border border-gray-300 rounded-md shadow overflow-hidden">
+              {/* Cabecera de zona */}
+              <div className="bg-gray-400 text-white flex items-center justify-between px-3 py-2">
+                <span className="text-[12px] font-semibold tracking-wide">
+                  {summaryData.zoneName || "Zona"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onGoToSearchPartner &&
+                    onGoToSearchPartner(summaryData.zoneName)
+                  }
+                  className="text-lg font-bold"
+                >
+                  {">"}
+                </button>
+              </div>
+
+              {/* Contenido gris interno */}
+              <div className="bg-gray-300 px-3 py-2 text-gray-900">
+                <p className="text-[11px] mb-2">
+                  {summaryData.totalPartners || 0} Socios
+                </p>
+
+                <DetailRow
+                  label="Cob Diaria <=30"
+                  pen={summaryData.dailyCollectionLessThan30}
+                  usd={summaryData.dailyCollectionLessThan30USD}
+                />
+                <DetailRow
+                  label="Cob Diaria >30"
+                  pen={summaryData.dailyCollectionGreaterThan30}
+                  usd={summaryData.dailyCollectionGreaterThan30USD}
+                />
+                <DetailRow
+                  label="Otros créditos"
+                  pen={summaryData.otherCreditsPEN}
+                  usd={summaryData.otherCreditsUSD}
+                />
+                <DetailRow
+                  label="Aportes"
+                  pen={summaryData.totalContributions}
+                  usd={summaryData.totalContributionsUSD}
+                />
+
+                <p className="text-[11px] mt-3 mb-1">
+                  {summaryData.collectedPartners || 0} Socios cobrados
+                </p>
+
+                <DetailRow
+                  label="Préstamos"
+                  pen={summaryData.loans}
+                  usd={summaryData.loansUSD}
+                />
+                <DetailRow
+                  label="Aportes"
+                  pen={summaryData.contributionsCollected}
+                  usd={summaryData.contributionsCollectedUSD}
+                />
+                <DetailRow
+                  label="Ahorros"
+                  pen={summaryData.totalSavingsPEN}
+                  usd={summaryData.totalSavingsUSD}
+                />
+
+                <DetailRow
+                  label="Total"
+                  pen={summaryData.totalLoanPaymentsPEN}
+                  usd={summaryData.totalLoanPaymentsUSD}
+                  bold
+                />
+                <DetailRow
+                  label="Total Recaudado"
+                  pen={summaryData.totalCollection}
+                  usd={summaryData.totalCollectionUSD}
+                  bold
+                />
+              </div>
             </div>
+          )}
+        </div>
 
-            <div className="bg-purple-50 p-4 rounded-lg shadow-inner">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Aportes y Préstamos</h3>
-              <p className="text-gray-700">Total Aportes: <span className="font-bold text-purple-700">S/ {parseFloat(summaryData.totalContributions || 0).toFixed(2)}</span></p>
-              <p className="text-gray-700">Préstamos: <span className="font-bold text-purple-700">S/ {parseFloat(summaryData.loans || 0).toFixed(2)}</span></p>
-              <p className="text-gray-700">Aportes Cobrados: <span className="font-bold text-purple-700">S/ {parseFloat(summaryData.contributionsCollected || 0).toFixed(2)}</span></p>
-            </div>
-
-            <div className="bg-yellow-50 p-4 rounded-lg shadow-inner">
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Resumen Financiero</h3>
-              <p className="text-gray-700">Ahorros (PEN): <span className="font-bold text-yellow-700">S/ {parseFloat(summaryData.totalSavingsPEN || 0).toFixed(2)}</span></p>
-              <p className="text-gray-700">Ahorros (USD): <span className="font-bold text-yellow-700">$ {parseFloat(summaryData.totalSavingsUSD || 0).toFixed(2)}</span></p>
-              <p className="text-gray-700">Total Recaudado (PEN): <span className="font-bold text-yellow-700">S/ {parseFloat(summaryData.totalCollection || 0).toFixed(2)}</span></p>
-              <p className="text-gray-700">Total Préstamos (PEN): <span className="font-bold text-yellow-700">S/ {parseFloat(summaryData.totalLoanPaymentsPEN || 0).toFixed(2)}</span></p>
-              <p className="text-gray-700">Total Préstamos (USD): <span className="font-bold text-yellow-700">$ {parseFloat(summaryData.totalLoanPaymentsUSD || 0).toFixed(2)}</span></p>
-            </div>
-          </div>
-        )}
-
-        <button
-          onClick={onGoBack}
-          className="w-full bg-gray-300 text-gray-800 py-3 rounded-md hover:bg-gray-400 transition duration-300 ease-in-out font-semibold text-lg shadow-md"
-          disabled={loading}
-        >
-          Volver
-        </button>
+        {/* FOOTER: barra inferior */}
+        <footer className="border-t bg-white py-2 flex justify-around text-[11px]">
+          <button
+            className={`flex flex-col items-center ${
+              isInicioActive ? "text-blue-600" : "text-gray-600"
+            }`}
+            onClick={onNavHome}
+          >
+            <span className="text-xl">🏠</span>
+            <span>Inicio</span>
+          </button>
+          <button
+            className={`flex flex-col items-center ${
+              isRecaudacionActive ? "text-blue-600" : "text-gray-600"
+            }`}
+            onClick={onNavRecaudacion}
+          >
+            <span className="text-xl">💰</span>
+            <span>Recaudación</span>
+          </button>
+          <button
+            className="flex flex-col items-center text-gray-600"
+            onClick={onNavLogout}
+          >
+            <span className="text-xl">⏻</span>
+            <span>Cerrar Sesión</span>
+          </button>
+        </footer>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default CollectionZoneDetailScreen;
+export default CollectionZoneDetailScreen
