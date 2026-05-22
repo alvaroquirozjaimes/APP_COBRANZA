@@ -1,112 +1,115 @@
-// ===============================================
-// CONTROLADOR DE DEPÓSITOS PARA COBRANZA
-// ===============================================
+const db = require('../config/db');
+const asyncHandler = require('../middleware/asyncHandler');
+const { isUuid, normalizeAmount, normalizeText } = require('../validators/commonValidators');
 
-const db = require('../config/db'); // Importa el pool de conexión a PostgreSQL
+const ALLOWED_CURRENCIES = new Set(['PEN', 'USD']);
+const ALLOWED_TRANSACTION_TYPES = new Set([
+  'daily_collection_lt_30',
+  'daily_collection_gt_30',
+  'contribution',
+  'loan_payment',
+  'savings_deposit',
+  'deposit',
+]);
 
+const createDeposit = asyncHandler(async (req, res) => {
+  const userCliId = normalizeText(req.body?.userCliId, 80);
+  const accountId = normalizeText(req.body?.accountId, 80);
+  const amount = normalizeAmount(req.body?.amount);
+  const transactionType = normalizeText(req.body?.transactionType, 80);
+  const currency = normalizeText(req.body?.currency, 10).toUpperCase();
+  const userCobId = req.user.id;
+  const transactionDate = new Date();
 
-// ===============================================
-// FUNCIÓN: Registrar un nuevo depósito
-// ===============================================
-// @desc    Crea un nuevo depósito y actualiza el balance de la cuenta asociada
-// @route   POST /api/cobranza/deposits
-// @access  Privado (requiere autenticación con JWT)
-const createDeposit = async (req, res) => {
-    // Extraer datos del cuerpo de la solicitud
-    // ⚠️ El frontend debe enviar estos campos con estos nombres:
-    const { userCliId, accountId, amount, transactionType, currency } = req.body;
+  if (!userCliId || !accountId || amount === null || !transactionType || !currency) {
+    return res.status(400).json({
+      message: 'Faltan campos obligatorios para el depósito (ID de cliente, ID de cuenta, monto, tipo de transacción, moneda).',
+    });
+  }
 
-    // Extraer el ID del cobrador autenticado desde el token JWT (middleware `protectCobranza`)
-    const userCobId = req.user.id;
+  if (!isUuid(userCliId) || !isUuid(accountId)) {
+    return res.status(400).json({ message: 'El cliente o la cuenta no tienen un identificador válido.' });
+  }
 
-    // Establecer la fecha actual como fecha de la transacción
-    const transactionDate = new Date();
+  if (!ALLOWED_CURRENCIES.has(currency)) {
+    return res.status(400).json({ message: 'La moneda enviada no es válida.' });
+  }
 
-    // Validar que todos los campos obligatorios estén presentes
-    if (!userCliId || !accountId || !amount || !transactionType || !currency) {
-        return res.status(400).json({ 
-            message: 'Faltan campos obligatorios para el depósito (ID de cliente, ID de cuenta, monto, tipo de transacción, moneda).' 
-        });
+  if (!ALLOWED_TRANSACTION_TYPES.has(transactionType)) {
+    return res.status(400).json({ message: 'El tipo de transacción enviado no es válido.' });
+  }
+
+  const client = await db.getClient();
+
+  try {
+    await client.query('BEGIN');
+
+    const accountValidation = await client.query(
+      `
+        SELECT a.id, a.currency
+        FROM accounts a
+        INNER JOIN user_cli uc ON uc.id = a.user_cli_id
+        WHERE a.id = $1
+          AND uc.id = $2
+          AND uc.collector_id = $3
+        FOR UPDATE;
+      `,
+      [accountId, userCliId, userCobId]
+    );
+
+    if (accountValidation.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({
+        message: 'Acceso denegado: la cuenta no pertenece al socio asignado al cobrador autenticado.',
+      });
     }
 
-    // Obtener un cliente de la pool para iniciar una transacción (con BEGIN/COMMIT/ROLLBACK)
-    const client = await db.getClient();
-
-    try {
-        // Inicia una transacción SQL
-        await client.query('BEGIN');
-
-        // =======================================
-        // 1. Insertar nuevo movimiento en `movements`
-        // =======================================
-        const insertMovementQuery = `
-            INSERT INTO movements (
-                user_cli_id, user_cob_id, account_id,
-                amount, currency, transaction_type, transaction_date, description
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING *;
-        `;
-
-        // Puedes personalizar esta descripción o permitir que el frontend la envíe
-        const description = `Depósito de ${currency} ${amount} - ${transactionType}`; 
-
-        // Ejecutar la inserción
-        const movementResult = await client.query(insertMovementQuery, [
-            userCliId,
-            userCobId,
-            accountId,
-            amount,
-            currency,
-            transactionType,
-            transactionDate,
-            description
-        ]);
-
-        // =======================================
-        // 2. Actualizar balance de la cuenta afectada
-        // =======================================
-        const updateAccountQuery = `
-            UPDATE accounts
-            SET balance = balance + $1
-            WHERE id = $2
-            RETURNING *;
-        `;
-
-        // Sumar el monto al balance actual
-        const accountUpdateResult = await client.query(updateAccountQuery, [
-            amount,
-            accountId
-        ]);
-
-        // Validar que la cuenta existe y fue actualizada
-        if (accountUpdateResult.rows.length === 0) {
-            throw new Error('Cuenta no encontrada o no actualizada.');
-        }
-
-        // Confirmar la transacción si todo salió bien
-        await client.query('COMMIT');
-
-        // Enviar respuesta exitosa al cliente
-        res.status(201).json({
-            message: 'Depósito registrado y cuenta actualizada exitosamente.',
-            movement: movementResult.rows[0],
-            account: accountUpdateResult.rows[0]
-        });
-
-    } catch (error) {
-        // Si algo falla, se revierte todo lo que se hizo dentro de la transacción
-        await client.query('ROLLBACK');
-        console.error('Error al crear depósito:', error.message);
-
-        res.status(500).json({
-            message: 'Error del servidor al registrar depósito: ' + error.message
-        });
-    } finally {
-        // Liberar el cliente de la pool (siempre, pase lo que pase)
-        client.release();
+    if (accountValidation.rows[0].currency !== currency) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: 'La moneda del depósito no coincide con la moneda de la cuenta.' });
     }
-};
 
-// Exportar función para que pueda ser usada en las rutas
+    const description = `Depósito de ${currency} ${amount.toFixed(2)} - ${transactionType}`;
+
+    const movementResult = await client.query(
+      `
+        INSERT INTO movements (
+          user_cli_id, user_cob_id, account_id,
+          amount, currency, transaction_type, transaction_date, description
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *;
+      `,
+      [userCliId, userCobId, accountId, amount, currency, transactionType, transactionDate, description]
+    );
+
+    const accountUpdateResult = await client.query(
+      `
+        UPDATE accounts
+        SET balance = balance + $1
+        WHERE id = $2
+        RETURNING *;
+      `,
+      [amount, accountId]
+    );
+
+    if (accountUpdateResult.rows.length === 0) {
+      throw new Error('Cuenta no encontrada o no actualizada.');
+    }
+
+    await client.query('COMMIT');
+
+    return res.status(201).json({
+      message: 'Depósito registrado y cuenta actualizada exitosamente.',
+      movement: movementResult.rows[0],
+      account: accountUpdateResult.rows[0],
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = { createDeposit };

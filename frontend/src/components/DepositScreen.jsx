@@ -35,7 +35,7 @@ const DepositScreen = ({
 
       try {
         const response = await authenticatedFetch(
-          `${API_BASE_URL}/partners/${selectedPartner.id}/accounts`,
+          `${API_BASE_URL}/partners/${encodeURIComponent(selectedPartner.id)}/accounts`,
           {
             headers: {
               "Content-Type": "application/json",

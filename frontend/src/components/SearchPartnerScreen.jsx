@@ -31,7 +31,7 @@ const SearchPartnerScreen = ({
 
       try {
         const response = await authenticatedFetch(
-          `${API_BASE_URL}/partners?search=${searchTerm}`,
+          `${API_BASE_URL}/partners?search=${encodeURIComponent(searchTerm.trim())}`,
           {
             headers: {
               "Content-Type": "application/json",

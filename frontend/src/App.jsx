@@ -1,171 +1,149 @@
-import React, { useState, useEffect } from "react"
-// Importamos todos los componentes que representan las pantallas de la app
-import LoginScreen from "./components/LoginScreen"
-import ForgotPasswordScreen from "./components/ForgotPasswordScreen"
-import RegisterScreen from "./components/RegisterScreen"
-import SearchPartnerScreen from "./components/SearchPartnerScreen"
-import MovementDetailScreen from "./components/MovementDetailScreen"
-import CollectionZoneDetailScreen from "./components/CollectionZoneDetailScreen"
-import DepositScreen from "./components/DepositScreen"
+import React, { useCallback, useEffect, useState } from 'react';
+import * as Sentry from '@sentry/react';
+
+import LoginScreen from './components/LoginScreen';
+import ForgotPasswordScreen from './components/ForgotPasswordScreen';
+import RegisterScreen from './components/RegisterScreen';
+import SearchPartnerScreen from './components/SearchPartnerScreen';
+import MovementDetailScreen from './components/MovementDetailScreen';
+import CollectionZoneDetailScreen from './components/CollectionZoneDetailScreen';
+import DepositScreen from './components/DepositScreen';
+import { getStoredToken, removeStoredToken, setStoredToken } from './utils/authStorage';
 
 const App = () => {
-  // Estados para controlar sesión, navegación y mensajes
-  const [loggedIn, setLoggedIn] = useState(false) // Si el usuario está logueado
-  const [currentPage, setCurrentPage] = useState("login") // Página actual
-  const [selectedPartner, setSelectedPartner] = useState(null) // Socio seleccionado
-  const [authToken, setAuthToken] = useState(
-    localStorage.getItem("authToken") || null
-  ) // Token guardado localmente
-  const [warningMessage, setWarningMessage] = useState("") // Mensajes de advertencia (por ahora casi no lo usamos)
-  const [selectedZoneName, setSelectedZoneName] = useState("CAYHUAYNA") // Zona actual
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [currentPage, setCurrentPage] = useState('login');
+  const [selectedPartner, setSelectedPartner] = useState(null);
+  const [authToken, setAuthToken] = useState(getStoredToken());
+  const [selectedZoneName, setSelectedZoneName] = useState('CAYHUAYNA');
 
-  // Manejo cuando el token ha expirado o es inválido
-  const handleTokenExpired = () => {
-    console.log("Token expirado o inválido. Redirigiendo al login.")
-    setAuthToken(null)
-    localStorage.removeItem("authToken")
-    setLoggedIn(false)
-    setCurrentPage("login")
-  }
+  const handleTokenExpired = useCallback(() => {
+    Sentry.captureMessage('Token expirado o inválido');
+    setAuthToken(null);
+    removeStoredToken();
+    setLoggedIn(false);
+    setSelectedPartner(null);
+    setCurrentPage('login');
+  }, []);
 
-  // Efecto para cambiar estado si hay token válido al iniciar
   useEffect(() => {
     if (authToken) {
-      setLoggedIn(true)
-      // Pantalla inicial DESPUÉS de login: Mis Zonas de Cobranza
-      setCurrentPage("collectionZoneDetail")
+      setLoggedIn(true);
+      setCurrentPage((previousPage) => (previousPage === 'login' ? 'collectionZoneDetail' : previousPage));
+      Sentry.setUser(null);
+    } else {
+      Sentry.setUser(null);
     }
-  }, [authToken])
+  }, [authToken]);
 
-  // Guardar token luego de login exitoso
-  const handleLoginSuccess = (token) => {
-    setAuthToken(token)
-    localStorage.setItem("authToken", token)
-    setLoggedIn(true)
-    // Pantalla inicial: Mis Zonas de Cobranza
-    setCurrentPage("collectionZoneDetail")
-  }
+  const handleLoginSuccess = useCallback((token) => {
+    setAuthToken(token);
+    setStoredToken(token);
+    setLoggedIn(true);
+    setCurrentPage('collectionZoneDetail');
+  }, []);
 
-  // Cerrar sesión
-  const handleLogout = () => {
-    setAuthToken(null)
-    localStorage.removeItem("authToken")
-    setLoggedIn(false)
-    setCurrentPage("login")
-    setWarningMessage("")
-    setSelectedPartner(null)
-  }
+  const handleLogout = useCallback(() => {
+    Sentry.setUser(null);
+    setAuthToken(null);
+    removeStoredToken();
+    setLoggedIn(false);
+    setSelectedPartner(null);
+    setCurrentPage('login');
+  }, []);
 
-  // Cuando se selecciona un socio, guardar y redirigir a pantalla de depósito
-  const handleSelectPartner = (partner) => {
-    setSelectedPartner(partner)
-    setWarningMessage("")
-    setCurrentPage("deposit")
-  }
+  const handleSelectPartner = useCallback((partner) => {
+    setSelectedPartner(partner);
+    setCurrentPage('deposit');
+  }, []);
 
-  // Acción para regresar usando la flecha superior
-  const handleGoBack = () => {
+  const handleNavHome = useCallback(() => {
+    setCurrentPage('collectionZoneDetail');
+  }, []);
+
+  const handleNavRecaudacion = useCallback(() => {
+    setCurrentPage('movementDetail');
+  }, []);
+
+  const handleGoBack = useCallback(() => {
     switch (currentPage) {
-      case "collectionZoneDetail":
-        // Volver desde Mis Zonas de Cobranza → cerrar sesión (como en muchas apps antiguas)
-        handleLogout()
-        break
-      case "searchPartner":
-        // Desde Buscar socios → volver a Mis Zonas de Cobranza
-        setCurrentPage("collectionZoneDetail")
-        break
-      case "movementDetail":
-        // Desde Recaudados del día → volver a Mis Zonas de Cobranza
-        setCurrentPage("collectionZoneDetail")
-        break
-      case "deposit":
-        // Desde Recaudar socio → volver a Buscar socios
-        setCurrentPage("searchPartner")
-        break
-      case "forgotPassword":
-      case "register":
-        setCurrentPage("login")
-        break
+      case 'collectionZoneDetail':
+        handleLogout();
+        break;
+      case 'searchPartner':
+      case 'movementDetail':
+        setCurrentPage('collectionZoneDetail');
+        break;
+      case 'deposit':
+        setCurrentPage('searchPartner');
+        break;
+      case 'forgotPassword':
+      case 'register':
+        setCurrentPage('login');
+        break;
       default:
-        handleLogout()
+        handleLogout();
     }
-  }
+  }, [currentPage, handleLogout]);
 
-  // Función para hacer peticiones con token en el header
-  const authenticatedFetch = async (url, options = {}) => {
+  const authenticatedFetch = useCallback(async (url, options = {}) => {
     try {
       const response = await fetch(url, {
         ...options,
         headers: {
+          Accept: 'application/json',
           ...options.headers,
           Authorization: `Bearer ${authToken}`,
         },
-      })
+      });
 
       if (response.status === 401) {
-        handleTokenExpired() // Redirigir si token no sirve
-        throw new Error(
-          "Token expirado o no autorizado. Por favor, vuelva a iniciar sesión."
-        )
+        handleTokenExpired();
+        throw new Error('Token expirado o no autorizado');
       }
 
-      return response
+      return response;
     } catch (error) {
-      console.error("Error en fetch autenticado:", error)
-      throw error
+      Sentry.captureException(error);
+      throw error;
     }
-  }
+  }, [authToken, handleTokenExpired]);
 
-  // Navegación de la barra inferior
-  const handleNavHome = () => {
-    setWarningMessage("")
-    setCurrentPage("collectionZoneDetail")
-  }
+  const handleGoToSearchFromZone = useCallback((zoneName) => {
+    if (zoneName) setSelectedZoneName(zoneName);
+    setCurrentPage('searchPartner');
+  }, []);
 
-  const handleNavRecaudacion = () => {
-    setWarningMessage("")
-    setCurrentPage("movementDetail")
-  }
-
-  // Cuando desde Mis Zonas se hace clic en la flechita para ir a Buscar Socios
-  const handleGoToSearchFromZone = (zoneName) => {
-    if (zoneName) setSelectedZoneName(zoneName)
-    setCurrentPage("searchPartner")
-  }
-
-  // Renderizar contenido principal según estado de sesión y página
-  let content
+  let content;
 
   if (!loggedIn) {
-    // Si no ha iniciado sesión, mostrar pantallas de login, registro o recuperar contraseña
     switch (currentPage) {
-      case "login":
+      case 'login':
         content = (
           <LoginScreen
             onLoginSuccess={handleLoginSuccess}
-            onGoToForgotPassword={() => setCurrentPage("forgotPassword")}
-            onGoToRegister={() => setCurrentPage("register")}
+            onGoToForgotPassword={() => setCurrentPage('forgotPassword')}
+            onGoToRegister={() => setCurrentPage('register')}
           />
-        )
-        break
-      case "forgotPassword":
+        );
+        break;
+      case 'forgotPassword':
         content = (
           <ForgotPasswordScreen
-            onGoToLogin={() => setCurrentPage("login")}
-            onGoToRegister={() => setCurrentPage("register")}
+            onGoToLogin={() => setCurrentPage('login')}
+            onGoToRegister={() => setCurrentPage('register')}
           />
-        )
-        break
-      case "register":
-        content = <RegisterScreen onGoBack={handleGoBack} />
-        break
+        );
+        break;
+      case 'register':
+        content = <RegisterScreen onGoBack={handleGoBack} />;
+        break;
       default:
-        content = <p>Página no encontrada.</p>
+        content = <p>Página no encontrada.</p>;
     }
   } else {
-    // Si está logueado, mostramos SOLO la pantalla actual tipo app móvil
     switch (currentPage) {
-      case "collectionZoneDetail":
+      case 'collectionZoneDetail':
         content = (
           <CollectionZoneDetailScreen
             onGoBack={handleGoBack}
@@ -177,9 +155,9 @@ const App = () => {
             onNavLogout={handleLogout}
             currentPage={currentPage}
           />
-        )
-        break
-      case "searchPartner":
+        );
+        break;
+      case 'searchPartner':
         content = (
           <SearchPartnerScreen
             onSelectPartner={handleSelectPartner}
@@ -192,9 +170,9 @@ const App = () => {
             onNavLogout={handleLogout}
             currentPage={currentPage}
           />
-        )
-        break
-      case "movementDetail":
+        );
+        break;
+      case 'movementDetail':
         content = (
           <MovementDetailScreen
             onGoBack={handleGoBack}
@@ -205,9 +183,9 @@ const App = () => {
             onNavLogout={handleLogout}
             currentPage={currentPage}
           />
-        )
-        break
-      case "deposit":
+        );
+        break;
+      case 'deposit':
         content = (
           <DepositScreen
             selectedPartner={selectedPartner}
@@ -219,26 +197,45 @@ const App = () => {
             onNavLogout={handleLogout}
             currentPage={currentPage}
           />
-        )
-        break
+        );
+        break;
       default:
-        content = (
-          <CollectionZoneDetailScreen
-            onGoBack={handleGoBack}
-            authToken={authToken}
-            authenticatedFetch={authenticatedFetch}
-            onGoToSearchPartner={handleGoToSearchFromZone}
-            onNavHome={handleNavHome}
-            onNavRecaudacion={handleNavRecaudacion}
-            onNavLogout={handleLogout}
-            currentPage={"collectionZoneDetail"}
-          />
-        )
+        content = <p>Página no encontrada.</p>;
     }
   }
 
-  // Devolver el contenido general de la aplicación
-  return <div className="App font-inter">{content}</div>
-}
+  return (
+    <div className="App font-inter">
+      {import.meta.env.DEV && (
+        <button
+          type="button"
+          style={{
+            position: 'fixed',
+            bottom: 20,
+            right: 20,
+            zIndex: 9999,
+            padding: '10px 14px',
+            background: '#ef4444',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            cursor: 'pointer',
+          }}
+          onClick={() => {
+            throw new Error('ERROR DE PRUEBA SENTRY - FRONTEND COBRANZA');
+          }}
+        >
+          Probar Sentry
+        </button>
+      )}
 
-export default App
+      {content}
+    </div>
+  );
+};
+
+const AppWithErrorBoundary = Sentry.withErrorBoundary(App, {
+  fallback: <h2>⚠️ Ocurrió un error inesperado</h2>,
+});
+
+export default AppWithErrorBoundary;

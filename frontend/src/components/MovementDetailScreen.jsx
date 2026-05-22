@@ -43,7 +43,7 @@ const MovementDetailScreen = ({
 
       try {
         const response = await authenticatedFetch(
-          `${API_BASE_URL}/movements?date=${selectedDate}`,
+          `${API_BASE_URL}/movements?date=${encodeURIComponent(selectedDate)}`,
           {
             headers: {
               "Content-Type": "application/json",

@@ -20,8 +20,6 @@ const DetailRow = ({ label, pen, usd, bold = false }) => (
 )
 
 const CollectionZoneDetailScreen = ({
-  // onGoBack YA NO SE USA AQUÍ
-  onGoBack, // lo dejamos en props por si lo usas en otro lado, pero no lo llamamos
   authToken,
   authenticatedFetch,
   onGoToSearchPartner,
@@ -50,7 +48,7 @@ const CollectionZoneDetailScreen = ({
 
       try {
         const response = await authenticatedFetch(
-          `${API_BASE_URL}/summary?month=${selectedMonth}`,
+          `${API_BASE_URL}/summary?month=${encodeURIComponent(selectedMonth)}`,
           {
             headers: {
               "Content-Type": "application/json",
